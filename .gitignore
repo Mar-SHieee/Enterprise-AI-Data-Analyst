@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+env/
+.env
+
+# Project-generated files
+data/raw/
+retail.db
+*.db
+
+# Caches
+.pytest_cache/
+.DS_Store
