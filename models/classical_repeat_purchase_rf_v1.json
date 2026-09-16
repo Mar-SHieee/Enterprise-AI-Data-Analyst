@@ -1,0 +1,25 @@
+{
+  "model_name": "classical_repeat_purchase_rf_v1",
+  "task": "repeat_purchase_prediction",
+  "created_at_utc": "2026-09-16T16:25:20.792888+00:00",
+  "features": [
+    "first_order_revenue",
+    "first_order_quantity",
+    "first_order_avg_price",
+    "first_order_unique_products",
+    "first_order_lines",
+    "log1p_first_order_revenue",
+    "log1p_first_order_quantity",
+    "log1p_first_order_avg_price",
+    "log1p_first_order_lines"
+  ],
+  "metrics": {
+    "accuracy": 0.8636363636363636,
+    "balanced_accuracy": 0.55,
+    "precision": 0.2,
+    "recall": 0.16666666666666666,
+    "f1": 0.18181818181818182,
+    "roc_auc": 0.5513888888888889,
+    "average_precision": 0.1602563102420082
+  }
+}
