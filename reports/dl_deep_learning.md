@@ -1,4 +1,4 @@
-# Member 4 — Deep Learning Track
+# Member 4 —Mahmoud Elaraby (Deep Learning Track)
 
 ## Objective
 Build a deep-learning upgrade for the same repeat-purchase prediction problem
@@ -43,24 +43,6 @@ Both models are close to random here. This is a **data-volume problem, not a
 modeling problem**: the test split has only ~6 positive (repeat) customers
 out of 66, which is not enough signal for either a Random Forest or an MLP
 to learn from reliably.
-
-**On the full cleaned `Online Retail II` dataset (5,939 customers, same
-feature/target definitions and split logic):**
-
-| Metric | MLP (Member 4) |
-|---|---|
-| ROC-AUC | 0.615 |
-| PR-AUC | 0.806 |
-| F1 | 0.659 |
-| Recall | 0.552 |
-| Precision | 0.817 |
-| Brier score | 0.244 |
-
-With the full dataset, the same architecture gets far more signal and
-produces meaningful, non-random predictions. This comparison is included in
-`notebooks/05_dl_model.ipynb` (section 5b) precisely to show that the
-sample-based numbers above should not be read as the model's real
-performance.
 
 ## Explainability
 A dependency-free permutation-importance routine (shuffle one feature at a
