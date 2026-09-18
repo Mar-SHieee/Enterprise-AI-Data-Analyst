@@ -1,0 +1,55 @@
+{
+  "model_name": "dl_mlp_repeat_purchase_v1",
+  "task": "repeat_purchase_prediction",
+  "model_type": "ChurnMLP",
+  "hidden": [
+    32,
+    16
+  ],
+  "created_at_utc": "2026-09-16T22:30:45.320824+00:00",
+  "features": [
+    "first_order_revenue",
+    "first_order_quantity",
+    "first_order_avg_price",
+    "first_order_unique_products",
+    "first_order_lines",
+    "log1p_first_order_revenue",
+    "log1p_first_order_quantity",
+    "log1p_first_order_avg_price",
+    "log1p_first_order_lines"
+  ],
+  "scaler_mean": [
+    17.983333333333334,
+    10.852564102564102,
+    2.9810576923076924,
+    1.0128205128205128,
+    1.0128205128205128,
+    2.37192235681668,
+    1.8806026199775534,
+    1.1698063105103296,
+    0.6983454511767168
+  ],
+  "scaler_scale": [
+    27.620440784775667,
+    16.416769290521156,
+    3.8598078955125916,
+    0.11249954342810412,
+    0.11249954342810412,
+    1.3718750572200757,
+    1.1768337982873678,
+    0.5875408539755675,
+    0.04561463953819538
+  ],
+  "metrics": {
+    "accuracy": 0.8484848484848485,
+    "balanced_accuracy": 0.4666666666666667,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "roc_auc": 0.45972222222222225,
+    "average_precision": 0.09096650558193134,
+    "pr_auc": 0.09096650558193134,
+    "brier_score": 0.21686260402202606,
+    "best_f1_threshold": 0.44165492057800293
+  }
+}
