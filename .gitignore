@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+env/
+.env
+
+# Project-generated files
+data/raw/
+retail.db
+*.db
+
+# Caches
+.pytest_cache/
+.DS_Store
+
+models/vector_index/
+reports/agent_audit.jsonl
+reports/agent_evaluation.json
+reports/agent_evaluation.csv
+
+# Spark
+spark/_warehouse/
+spark/**/_SUCCESS
+spark/**/.*.crc
+
+# App / MLOps logs
+reports/app.log
+reports/predictions.jsonl
+reports/model_comparison.*
+
+# Notebook checkpoints
+notebooks/.ipynb_checkpoints/

@@ -1,0 +1,15 @@
+services:
+  analyst:
+    build: .
+    image: enterprise-ai-analyst:latest
+    container_name: enterprise-ai-analyst
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      # Persist the warehouse, the artifacts and the logs across restarts.
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./reports:/app/reports
+    restart: unless-stopped

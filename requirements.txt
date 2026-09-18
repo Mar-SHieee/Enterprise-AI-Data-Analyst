@@ -1,0 +1,29 @@
+# ---- core data / ML -------------------------------------------------------
+pandas>=2.0
+numpy>=1.24
+openpyxl>=3.1
+scikit-learn>=1.3
+joblib>=1.3
+matplotlib>=3.7
+
+# ---- deep learning (Member 4) --------------------------------------------
+torch>=2.0
+
+# ---- app / deployment (Member 6) -----------------------------------------
+streamlit>=1.30
+python-dotenv>=1.0
+
+# ---- big data (Member 2, optional at runtime) -----------------------------
+pyspark>=3.5
+
+# ---- RAG / agent (Member 5) ----------------------------------------------
+# sentence-transformers is optional: the vector store falls back to a
+# deterministic TF-IDF backend when it is not installed, so the app, the tests
+# and the Docker image work with no model download.
+# sentence-transformers>=2.2
+# openai>=1.0                 # only for LLM_PROVIDER=openai
+# google-genai>=0.1           # only for LLM_PROVIDER=gemini
+# google-generativeai>=0.5    # legacy fallback for LLM_PROVIDER=gemini
+
+# ---- testing --------------------------------------------------------------
+pytest>=7.4
