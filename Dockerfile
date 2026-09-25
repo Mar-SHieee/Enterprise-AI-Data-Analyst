@@ -29,6 +29,7 @@ RUN pip install --upgrade pip \
     && pip install torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install -r requirements.txt
 COPY . .
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Non-root user (the app only ever reads the database).
 RUN useradd --create-home --uid 1000 analyst \
