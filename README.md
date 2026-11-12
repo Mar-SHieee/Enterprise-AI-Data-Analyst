@@ -22,12 +22,14 @@ The rule that shapes every part of the system:
 - [Quick start](#quick-start)
 - [Running locally, step by step](#running-locally-step-by-step)
 - [Running with Docker](#running-with-docker)
+- [Deploying a public demo](#deploying-a-public-demo)
 - [The application](#the-application)
 - [Architecture](#architecture)
 - [Repository layout](#repository-layout)
 - [Results](#results)
 - [Reproducing everything](#reproducing-everything)
 - [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
 - [Security](#security)
 - [Limitations](#limitations)
 - [Future work](#future-work)
@@ -40,8 +42,8 @@ The rule that shapes every part of the system:
 **A live dashboard, not a static report.** Revenue, order count, customer
 count, average order value, and repeat-purchase rate, computed from the
 current data, alongside a monthly trend and the top products, countries, and
-customers. Every card expands to show the exact SQL behind it, so a number can
-be checked rather than trusted blindly.
+customers. The exact SQL behind the key figures can be expanded and read, so a
+number can be checked rather than trusted blindly.
 
 **Ask a question instead of writing a query.** "What was total revenue in
 2011?" or "List our high-value customers" gets answered directly. The question
@@ -105,7 +107,9 @@ streamlit run app/streamlit_app.py # http://localhost:8501
 
 With no API key the app still works end to end: routing falls back to
 deterministic rules, SQL to vetted templates, and answers display the raw tool
-evidence. Set `LLM_PROVIDER` and `LLM_API_KEY` in `.env` for generated prose.
+evidence (documentation passages are shown as readable source cards). Set
+`LLM_PROVIDER`, `LLM_MODEL` and `LLM_API_KEY` in `.env` for generated prose;
+see [Connecting an LLM](#connecting-an-llm).
 
 ---
 
@@ -149,15 +153,19 @@ Pulls in Streamlit, pandas, scikit-learn, PyTorch, PySpark, and everything
 else the app needs. It can take several minutes the first time; PyTorch and
 PySpark are large downloads.
 
+The interface relies on recent Streamlit features (`st.container(key=...)`
+and `width="stretch"`), so keep the Streamlit version pinned in
+`requirements.txt` and upgrade it if the app reports an unexpected argument.
+
 **5. Configure environment variables (optional)**
 
 ```bash
 cp .env.example .env
 ```
 
-Leave it as-is to run fully offline in rule-based mode, or add
-`LLM_PROVIDER` and `LLM_API_KEY` for generated prose. `.env` is git-ignored
-and must never be committed.
+Leave it as-is to run fully offline in rule-based mode, or connect a language
+model as described in [Connecting an LLM](#connecting-an-llm). `.env` is
+git-ignored and must never be committed.
 
 **6. Build the SQL warehouse**
 
@@ -192,6 +200,40 @@ streamlit run app/streamlit_app.py
 ```
 
 Streamlit opens at **http://localhost:8501**. Stop it with `Ctrl+C`.
+
+### Connecting an LLM
+
+The agent already calls the language model for three things: routing the
+question, generating SQL, and writing the final answer. Connecting one needs
+no code change, only environment variables in a `.env` file in the repository
+root (next to `app/` and `data/`):
+
+```
+LLM_PROVIDER=gemini                 # gemini | openai | rule
+LLM_MODEL=<model name from your provider's docs>
+LLM_API_KEY=<your key>
+LLM_BASE_URL=                       # only for OpenAI-compatible providers
+```
+
+- `openai` covers any OpenAI-compatible endpoint (OpenAI, Groq, Together,
+  NVIDIA NIM, OpenRouter, a local vLLM server). Set `LLM_BASE_URL` for
+  anything other than OpenAI itself.
+- `LLM_MODEL` defaults to `gpt-4o-mini`, so set it explicitly for any other
+  provider.
+- Install the matching SDK: `pip install openai` or `pip install google-genai`
+  (and keep it in `requirements.txt`).
+- With no key, or if the provider cannot be initialised, the app falls back to
+  rule-based mode instead of failing.
+
+Check the connection before starting the app:
+
+```bash
+python -c "from rag.llm import get_llm; print(get_llm().name)"
+```
+
+It prints `gemini` or `openai` when the model is connected, and `rule` (with a
+message explaining why) when it is not. **Restart Streamlit after changing
+`.env`:** the agent is created once per server process and cached.
 
 ---
 
@@ -251,15 +293,57 @@ docker run -p 8501:8501 --env-file .env enterprise-ai-analyst
 
 ---
 
+## Deploying a public demo
+
+Two routes are practical:
+
+- **Docker** (already supported above) on any host that runs containers. The
+  entrypoint builds the warehouse and model artifacts on first start.
+- **Streamlit Community Cloud**: connect the GitHub repository and set the
+  main file to `app/streamlit_app.py`.
+
+Checklist before publishing a link:
+
+1. `requirements.txt` is complete, including the LLM SDK you chose. PySpark is
+   only used by `spark/spark_pipeline.py`; a hosted demo can use a trimmed
+   requirements file without it (confirm nothing under `app/` or `rag/`
+   imports it first).
+2. `.streamlit/config.toml` sits in the **repository root**, not inside `app/`.
+3. `data/retail.db` is not in git. For a hosted demo either commit a built
+   copy (it is small for the 300-row sample) or use the Docker route.
+4. Put the LLM settings in the host's **Secrets** (Streamlit Cloud exposes
+   top-level secrets as environment variables, so no code change is needed):
+   ```toml
+   LLM_PROVIDER = "gemini"
+   LLM_MODEL = "<model name>"
+   LLM_API_KEY = "<your key>"
+   ```
+   Never commit `.env` or a key.
+
+Things to know about a hosted demo:
+
+- **Logs are not durable.** Hosted filesystems are usually ephemeral, so the
+  audit and prediction logs reset on restart and the Monitoring page starts
+  empty after a redeploy.
+- **A public link with a live key spends your quota.** Use a key with a small
+  spending limit.
+
+---
+
 ## The application
 
-| Page | What it shows |
-| --- | --- |
-| **Executive dashboard** | Revenue, orders, customers, AOV, repeat rate, monthly trend, top products/countries/customers, every figure from a query you can expand and read. |
-| **Ask the analyst** | The agent's routing decision, the SQL executed, the result table, citations, security findings, latency, and trace id. |
-| **Customer prediction** | Champion (classical) vs. challenger (deep MLP) scored on the same customer, with the features used and a disagreement warning. |
-| **Model registry** | Registered artifacts, versions, metrics, the ML vs. DL comparison, and deep-learning training curves. |
-| **Monitoring** | Agent evaluation summary, live audit log, prediction log, and probability distribution for drift. |
+The interface uses a single light pink/mauve theme with a top navigation bar
+(there is no sidebar). The **Online** badge at the right of the bar shows
+whether the SQL tool is connected; hover it to see the active model, the
+database, and the number of available tools.
+
+| Page                     | What it shows                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AI Analyst** (default) | A chat with suggested starter questions. Answers appear as result tables, or as a single-figure card for one-number results. The SQL that ran and any model output sit under _Technical details_. Documentation answers are shown as source cards with the section title, file name, and match score. Security warnings, the tools used, and latency are shown with each answer. The routing reason and trace id are recorded in the audit log. |
+| **Dashboard**            | Revenue, orders, customers, AOV, repeat rate, monthly trend, top products/countries/customers, with the SQL behind the key figures available in an expander.                                                                                                                                                                                                                                                                                    |
+| **Predictions**          | Champion (classical) vs. challenger (deep MLP) scored on the same customer, with the features used and a disagreement warning. Model details are in a collapsed section.                                                                                                                                                                                                                                                                        |
+| **Model Registry**       | Registered artifacts, versions, metrics, the ML vs. DL comparison, and deep-learning training curves.                                                                                                                                                                                                                                                                                                                                           |
+| **Monitoring**           | Agent evaluation summary, live audit log (including the routing reason), prediction log, and probability distribution for drift.                                                                                                                                                                                                                                                                                                                |
 
 ---
 
@@ -299,11 +383,17 @@ Full diagrams and design decisions: [`docs/architecture.md`](docs/architecture.m
 ## Repository layout
 
 ```
+├── .streamlit/
+│   └── config.toml              # Streamlit theme (must sit in the repo root)
 ├── app/                         # Streamlit application
 │   ├── streamlit_app.py         # entry point ("streamlit run app/streamlit_app.py")
 │   ├── data/                    # SQL query constants + cached data-access helpers
-│   ├── views/                   # one class per page (dashboard, analyst, prediction, registry, monitoring)
-│   └── ui/                      # shared chrome (sidebar, system status)
+│   ├── views/                   # one class per page (analyst, dashboard, prediction, registry, monitoring)
+│   └── ui/                      # shared look and feel
+│       ├── theme.py             # global CSS: palette, cards, chat, code blocks
+│       ├── topnav.py            # top navigation bar + Online badge
+│       ├── components.py        # page header, cards, SQL/JSON code blocks
+│       └── rag_format.py        # turns raw retrieved-document text into readable source cards
 ├── data/                        # sample data + the knowledge-base documents
 │   ├── business_definitions.md
 │   ├── kpi_definitions.md
@@ -319,6 +409,7 @@ Full diagrams and design decisions: [`docs/architecture.md`](docs/architecture.m
 │   ├── retrieval.py               # retrieve → sanitise → cite
 │   ├── security.py                # SQL validator + injection defence
 │   ├── sql_tool.py                # read-only execution, row/time caps
+│   ├── llm.py                     # provider-agnostic LLM wrapper (openai-compatible, gemini, rule)
 │   ├── agent.py                   # routing, tools, grounded answer
 │   ├── audit.py                    # JSONL audit log
 │   └── evaluation.py               # the four agent metrics
@@ -346,13 +437,13 @@ Full diagrams and design decisions: [`docs/architecture.md`](docs/architecture.m
 
 ### Agent (19 labelled cases, offline mode)
 
-| Metric | Score |
-| --- | --- |
-| Tool-selection accuracy | 100% |
-| Groundedness | 100% |
-| Hallucination rate | 0% |
-| Task completion | 100% |
-| SQL guardrail accuracy | 100% (12 probes) |
+| Metric                  | Score            |
+| ----------------------- | ---------------- |
+| Tool-selection accuracy | 100%             |
+| Groundedness            | 100%             |
+| Hallucination rate      | 0%               |
+| Task completion         | 100%             |
+| SQL guardrail accuracy  | 100% (12 probes) |
 
 Full breakdown, method, and caveats: [`reports/agent_evaluation.md`](reports/agent_evaluation.md).
 
@@ -384,16 +475,43 @@ All settings come from the environment with repo-relative defaults; see
 `.env.example`. Nothing secret is ever committed; `config.summary()` prints
 `"set"` or `"not set"` instead of the key itself.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `LLM_PROVIDER` | `rule` | `openai` \| `gemini` \| `rule` (offline) |
-| `LLM_API_KEY` | — | Empty key falls back to offline mode automatically |
-| `DB_PATH` | `data/retail.db` | Warehouse location |
-| `KNOWLEDGE_DIR` | `data` | Knowledge-base markdown |
-| `SQL_MAX_ROWS` | `200` | Result cap fed to the model |
-| `SQL_TIMEOUT_SECONDS` | `10` | Wall-clock query interrupt |
-| `RETRIEVAL_TOP_K` | `4` | Chunks retrieved per question |
-| `MAX_QUESTION_LENGTH` | `1000` | Input length cap |
+| Variable              | Default          | Purpose                                                                     |
+| --------------------- | ---------------- | --------------------------------------------------------------------------- |
+| `LLM_PROVIDER`        | `rule`           | `openai` \| `gemini` \| `rule` (offline)                                    |
+| `LLM_MODEL`           | `gpt-4o-mini`    | Model name for the chosen provider; set it explicitly when not using OpenAI |
+| `LLM_API_KEY`         | —                | Empty key falls back to offline mode automatically                          |
+| `LLM_BASE_URL`        | —                | Endpoint for OpenAI-compatible providers (Groq, OpenRouter, vLLM, …)        |
+| `DB_PATH`             | `data/retail.db` | Warehouse location                                                          |
+| `KNOWLEDGE_DIR`       | `data`           | Knowledge-base markdown                                                     |
+| `SQL_MAX_ROWS`        | `200`            | Result cap fed to the model                                                 |
+| `SQL_TIMEOUT_SECONDS` | `10`             | Wall-clock query interrupt                                                  |
+| `RETRIEVAL_TOP_K`     | `4`              | Chunks retrieved per question                                               |
+| `MAX_QUESTION_LENGTH` | `1000`           | Input length cap                                                            |
+
+---
+
+## Troubleshooting
+
+**The app answers in rule-based mode (the Online badge tooltip shows
+`Model: rule`).** The language model is not connected. Check that `.env`
+exists in the repository root and contains `LLM_PROVIDER`, `LLM_MODEL` and
+`LLM_API_KEY`, that the SDK is installed, and run the check in
+[Connecting an LLM](#connecting-an-llm). Then restart Streamlit.
+
+**The page shows default Streamlit colours.** `.streamlit/config.toml` must be
+in the folder you run `streamlit run` from (the repository root), not inside
+`app/`. Most of the styling comes from `app/ui/theme.py` and applies either
+way.
+
+**An error mentions an unexpected `width` or `key` argument.** The installed
+Streamlit is too old for the interface. Upgrade it with
+`pip install --upgrade streamlit`.
+
+**Prediction or Model Registry pages show "no artifacts found".** Run
+`python scripts/train_models.py`.
+
+**Dashboard shows no data or "No database connected".** Run
+`python scripts/build_database.py`.
 
 ---
 
@@ -446,19 +564,20 @@ Stated up front rather than left to be discovered:
   hundred chunks (`Retriever` already hides the store).
 - Scheduled drift monitoring on the prediction log rather than an on-demand
   chart.
+- Stream the model's answer token by token in the chat.
 
 ---
 
 ## Team
 
-| Area | Owner | Key files |
-| --- | --- | --- |
-| Data engineering, SQL warehouse, EDA | Mariam Ramdan | `notebooks/01`, `notebooks/02`, `sql/`, `data/`, `src/data/` |
-| Spark / big-data pipeline | Mosaab Mohamed | `notebooks/03`, `spark/` |
-| Classical machine learning | Mahmoud Walid | `notebooks/04`, `src/models/`, `models/` |
-| Deep learning | Mahmoud Elaraby | `notebooks/05`, `src/models/`, `models/` |
-| RAG knowledge layer, controlled agent, security | Mokhtar Ibrahim | `notebooks/06`, `rag/` |
-| Streamlit app, MLOps, Docker, testing, documentation | Maram Ahmed | `app/`, `Dockerfile`, `tests/`, `src/models/predict.py` |
+| Area                                                 | Owner           | Key files                                                    |
+| ---------------------------------------------------- | --------------- | ------------------------------------------------------------ |
+| Data engineering, SQL warehouse, EDA                 | Mariam Ramdan   | `notebooks/01`, `notebooks/02`, `sql/`, `data/`, `src/data/` |
+| Spark / big-data pipeline                            | Mosaab Mohamed  | `notebooks/03`, `spark/`                                     |
+| Classical machine learning                           | Mahmoud Walid   | `notebooks/04`, `src/models/`, `models/`                     |
+| Deep learning                                        | Mahmoud Elaraby | `notebooks/05`, `src/models/`, `models/`                     |
+| RAG knowledge layer, controlled agent, security      | Mokhtar Ibrahim | `notebooks/06`, `rag/`                                       |
+| Streamlit app, MLOps, Docker, testing, documentation | Maram Ahmed     | `app/`, `Dockerfile`, `tests/`, `src/models/predict.py`      |
 
 Dataset: [UCI Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii).
 Please cite the original dataset creators in any published report.
