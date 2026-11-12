@@ -7,6 +7,7 @@ import streamlit as st
 
 from app.data.access import get_resources, sql_frame
 from app.data.queries import Q_CUSTOMER_IDS
+from app.ui.components import card, page_header
 from app.views.base import Page
 
 
@@ -15,7 +16,10 @@ class PredictionPage(Page):
 
     def render(self) -> None:
         agent, prediction_log = get_resources()
-        st.header(self.title)
+        page_header(
+            "Customer Prediction",
+            "Repeat-purchase probability — champion (classical) vs challenger (deep MLP).",
+        )
 
         if agent.prediction_tool is None:
             st.info(
@@ -25,7 +29,8 @@ class PredictionPage(Page):
             return
 
         tool = agent.prediction_tool
-        st.caption(tool.describe())
+        with st.expander("About this model"):
+            st.caption(tool.describe())
 
         customer_id, go = self._render_selector()
         if go and customer_id:
@@ -35,17 +40,18 @@ class PredictionPage(Page):
         ids = sql_frame(Q_CUSTOMER_IDS)
         options = ids["customer_id"].astype(str).tolist() if not ids.empty else []
 
-        left, right = st.columns([2, 1])
-        with left:
-            customer_id = (
-                st.selectbox("Customer", options)
-                if options
-                else st.text_input("Customer id")
-            )
-        with right:
-            st.write("")
-            st.write("")
-            go = st.button("Predict", type="primary")
+        with card("selector"):
+            left, right = st.columns([2, 1])
+            with left:
+                customer_id = (
+                    st.selectbox("Customer", options)
+                    if options
+                    else st.text_input("Customer id")
+                )
+            with right:
+                st.write("")
+                st.write("")
+                go = st.button("Predict", type="primary", width="stretch")
         return customer_id, go
 
     def _render_result(self, tool, prediction_log, customer_id: str) -> None:
@@ -59,28 +65,30 @@ class PredictionPage(Page):
         probability = result["probability"] or 0.0
         champ, chall = st.columns(2)
         with champ:
-            st.subheader("Champion — classical")
-            st.metric("Repeat-purchase probability", f"{probability:.1%}")
-            st.caption(
-                f"decision: **{result['label']}** · model `{result['model_version']}`"
-            )
-            st.progress(min(max(probability, 0.0), 1.0))
+            with card("champion"):
+                st.subheader("Champion — classical")
+                st.metric("Repeat-purchase probability", f"{probability:.1%}")
+                st.caption(
+                    f"decision: **{result['label']}** · model `{result['model_version']}`"
+                )
+                st.progress(min(max(probability, 0.0), 1.0))
 
         challenger = result.get("challenger")
         with chall:
-            st.subheader("Challenger — deep MLP")
-            if not challenger or challenger.get("status") != "success":
-                st.info("No challenger model loaded.")
-            else:
-                cp = challenger["probability"] or 0.0
-                st.metric("Repeat-purchase probability", f"{cp:.1%}")
-                st.caption(
-                    f"decision: **{challenger['label']}** · "
-                    f"model `{challenger['model_version']}`"
-                )
-                st.progress(min(max(cp, 0.0), 1.0))
-                if challenger["label"] != result["label"]:
-                    st.warning("Champion and challenger disagree on this customer.")
+            with card("challenger"):
+                st.subheader("Challenger — deep MLP")
+                if not challenger or challenger.get("status") != "success":
+                    st.info("No challenger model loaded.")
+                else:
+                    cp = challenger["probability"] or 0.0
+                    st.metric("Repeat-purchase probability", f"{cp:.1%}")
+                    st.caption(
+                        f"decision: **{challenger['label']}** · "
+                        f"model `{challenger['model_version']}`"
+                    )
+                    st.progress(min(max(cp, 0.0), 1.0))
+                    if challenger["label"] != result["label"]:
+                        st.warning("Champion and challenger disagree on this customer.")
 
         with st.expander(
             "Features used (computed live from the customer's first order)"
@@ -92,7 +100,7 @@ class PredictionPage(Page):
                         for k, v in result["features_used"].items()
                     ]
                 ),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 

@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from app.data.access import read_json
+from app.ui.components import BRAND, BRAND_DARK, card, json_block, page_header
 from app.views.base import Page
 from src.utils import config
 
@@ -16,12 +17,14 @@ class RegistryPage(Page):
     title = "Model registry"
 
     def render(self) -> None:
-        st.header(self.title)
+        page_header(
+            "Model Registry",
+            "Trained artifacts, versions and the classical ML vs deep learning comparison.",
+        )
         models_dir = Path(config.MODELS_DIR)
         reports_dir = Path(config.REPORTS_DIR)
 
         self._render_comparison(reports_dir)
-        st.divider()
         self._render_artifacts(models_dir)
         self._render_training_curves(models_dir)
 
@@ -31,18 +34,18 @@ class RegistryPage(Page):
             st.info("Run `python scripts/train_models.py` to generate the comparison.")
             return
 
-        st.subheader("Classical ML vs deep learning")
-        frame = pd.DataFrame(comparison)
-        st.dataframe(frame, use_container_width=True, hide_index=True)
-        if "average_precision" in frame:
-            st.bar_chart(frame.set_index("model")["average_precision"])
-        st.caption(
-            "Average precision (PR-AUC) is the headline metric: the target is "
-            "imbalanced, so accuracy is not informative."
-        )
+        with card("comparison"):
+            st.subheader("Classical ML vs deep learning")
+            frame = pd.DataFrame(comparison)
+            st.dataframe(frame, width="stretch", hide_index=True)
+            if "average_precision" in frame:
+                st.bar_chart(frame.set_index("model")["average_precision"], color=BRAND)
+            st.caption(
+                "Average precision (PR-AUC) is the headline metric: the target is "
+                "imbalanced, so accuracy is not informative."
+            )
 
     def _render_artifacts(self, models_dir: Path) -> None:
-        st.subheader("Registered artifacts")
         rows = []
         for meta_file in sorted(models_dir.glob("*.json")):
             meta = read_json(meta_file, {})
@@ -62,20 +65,25 @@ class RegistryPage(Page):
                     else None,
                 }
             )
-        if not rows:
-            st.info("No model artifacts found in `models/`.")
-            return
-
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        chosen = st.selectbox("Inspect metadata", [r["artifact"] for r in rows])
-        st.json(read_json(models_dir / f"{chosen}.json", {}))
+        with card("artifacts"):
+            st.subheader("Registered artifacts")
+            if not rows:
+                st.info("No model artifacts found in `models/`.")
+                return
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+            chosen = st.selectbox("Inspect metadata", [r["artifact"] for r in rows])
+            json_block(read_json(models_dir / f"{chosen}.json", {}))
 
     def _render_training_curves(self, models_dir: Path) -> None:
         history = models_dir / "dl_repeat_purchase_mlp_v1_history.csv"
         if not history.exists():
             return
-        st.subheader("Deep-learning training curves")
-        curves = pd.read_csv(history).set_index("epoch")
-        c1, c2 = st.columns(2)
-        c1.line_chart(curves[["train_loss", "val_loss"]])
-        c2.line_chart(curves[["val_average_precision", "val_roc_auc"]])
+        with card("curves"):
+            st.subheader("Deep-learning training curves")
+            curves = pd.read_csv(history).set_index("epoch")
+            c1, c2 = st.columns(2)
+            c1.line_chart(curves[["train_loss", "val_loss"]], color=[BRAND, BRAND_DARK])
+            c2.line_chart(
+                curves[["val_average_precision", "val_roc_auc"]],
+                color=[BRAND, BRAND_DARK],
+            )

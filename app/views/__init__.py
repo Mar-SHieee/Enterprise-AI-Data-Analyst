@@ -16,8 +16,8 @@ from app.views.registry import RegistryPage
 PAGES: dict[str, Page] = {
     page.title: page
     for page in (
-        DashboardPage(),
         AnalystPage(),
+        DashboardPage(),
         PredictionPage(),
         RegistryPage(),
         MonitoringPage(),

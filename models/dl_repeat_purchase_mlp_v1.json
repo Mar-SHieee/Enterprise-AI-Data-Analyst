@@ -12,7 +12,7 @@
     "output": "single logit + sigmoid"
   },
   "task": "repeat_purchase_prediction",
-  "created_at_utc": "2026-09-18T10:09:28.332692+00:00",
+  "created_at_utc": "2026-09-26T10:22:54.302268+00:00",
   "features": [
     "first_order_revenue",
     "first_order_quantity",

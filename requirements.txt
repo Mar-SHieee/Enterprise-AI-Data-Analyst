@@ -25,5 +25,9 @@ pyspark>=3.5
 # google-genai>=0.1           # only for LLM_PROVIDER=gemini
 # google-generativeai>=0.5    # legacy fallback for LLM_PROVIDER=gemini
 
+# ---- app / deployment (Member 6) -----------------------------------------
+streamlit>=1.36
+python-dotenv>=1.0
+
 # ---- testing --------------------------------------------------------------
 pytest>=7.4
